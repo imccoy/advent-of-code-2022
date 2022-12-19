@@ -4,6 +4,7 @@ import Data.Maybe
 import System.Environment (getArgs)
 import System.Exit (die)
 
+import Day1 (day1)
 -- NEXT DAY IMPORT
 
 import Part (getPart, Part (Part1, Part2))
@@ -11,6 +12,7 @@ import Part (getPart, Part (Part1, Part2))
 getDay :: String -> Maybe (Part -> [String] -> IO ())
 getDay n =
   case n of
+    "1" -> Just day1
     -- NEXT DAY CASE
     _ -> Nothing
 
