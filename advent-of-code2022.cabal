@@ -29,6 +29,10 @@ executable advent-of-code2022-exe
       Day1
       Day2
       Day3
+      Day4
+      Day5
+      Day6
+      Day7
       Part
       Paths_advent_of_code2022
   hs-source-dirs:
@@ -40,6 +44,7 @@ executable advent-of-code2022-exe
     , lens
     , mtl
     , parsec
+    , safe
     , split
     , vector
   default-language: Haskell2010

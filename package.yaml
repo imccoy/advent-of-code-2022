@@ -27,6 +27,7 @@ dependencies:
 - vector
 - parsec
 - mtl
+- safe
 
 executables:
   advent-of-code2022-exe:
