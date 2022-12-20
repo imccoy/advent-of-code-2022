@@ -33,6 +33,8 @@ executable advent-of-code2022-exe
       Day5
       Day6
       Day7
+      Day8
+      Day9
       Part
       Paths_advent_of_code2022
   hs-source-dirs:
