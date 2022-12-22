@@ -2,7 +2,7 @@
 module Day12 (day12) where
 import Part (Part (Part1, Part2))
 
-import Data.List (sort)
+import Data.List (sort, foldl')
 import Data.Map.Strict (Map, (!))
 import qualified Data.Map.Strict as Map
 import Data.Set (Set)
@@ -45,8 +45,13 @@ graphFromInput inputMap = (startPoint
     heightMap  = Map.insert startPoint 'a' $ Map.insert endPoint 'z' $ inputMap
 
 
-dijkstra :: forall k. (Eq k, Ord k) => Map k [(Int, k)] -> k -> k -> Int
-dijkstra graph start end =
+invertGraph :: (Ord k) => Map k [(Int, k)] -> Map k [(Int, k)]
+invertGraph = Map.unionsWith (++) . concat . map (\(from, edges) -> map (\(cost, to) -> Map.singleton to [(cost, from)]) edges) . Map.toList
+
+dijkstra graph start end = dijkstraAny graph start (\x -> x == end)
+
+dijkstraAny :: forall k. (Eq k, Ord k) => Map k [(Int, k)] -> k -> (k -> Bool) -> Int
+dijkstraAny graph start stopHere =
   let initialCosts = const maxBound <$> graph
       initialHeap = Map.unionsWith (<>) $ (\x -> Map.singleton maxBound [x]) <$> Map.keys graph
       pullLowCostNode :: Map Int [k] -> (k, Map Int [k])
@@ -65,7 +70,7 @@ dijkstra graph start end =
 
       go :: k -> (Map k Int, Map Int [k]) -> Set k -> Int
       go node (costs, heap) visited
-        | node == end = costs ! end
+        | stopHere node = costs ! node
         | Set.member node visited = next (costs, heap) visited
         | otherwise = let costToHere = costs ! node
                           (costs', heap') = foldr (\(c, n) ch -> updateCostsHeap ch n c) (costs, heap) .
@@ -82,8 +87,8 @@ part1 inputMap = do let (start, end, graph) = graphFromInput inputMap
 
 part2 :: Parsed -> IO ()
 part2 inputMap = do let (start, end, graph) = graphFromInput inputMap
-                    let potentialStartPoints = [k | (k, v) <- Map.toList inputMap, v == 'a' || v == 'S']
-                    putStrLn $ show $ sort $ fmap (\start -> dijkstra graph start end) potentialStartPoints
+                    let potentialStartPoints = Set.fromList [k | (k, v) <- Map.toList inputMap, v == 'a' || v == 'S']
+                    putStrLn $ show $ dijkstraAny (invertGraph graph) end (`Set.member` potentialStartPoints)
 
 day12 part args = do
   let filename = case args of
