@@ -57,7 +57,7 @@ snowToFill stripesZ = countSnow startLocStripes
                                InspectStripeFull -> case inspectStripe (fromJust (stripes & rightward <&> view focus)) (h+1) of
                                  InspectStripeFreeFall -> 0
                                  InspectStripeFreeUntil y -> landFrom (fromJust (stripes & rightward)) y
-                                 InspectStripeFull -> 1 + countSnow (stripes & focus %~ addToStripe h)
+                                 InspectStripeFull -> if h == 0 && tooth stripes == 500 then 1 else 1 + countSnow (stripes & focus %~ addToStripe h)
         startLoc = saveTape startLocStripes
         startLocStripes = fromJust (stripesZ & leftmost & jerks rightward 500)
          
@@ -67,10 +67,13 @@ part1 input = do
   let stripes = toStripes input
   let stripesZ = zipper stripes & fromWithin traverse
   putStrLn $ show $ snowToFill stripesZ
-  
 
 part2 :: Parsed -> IO ()
-part2 _ = putStrLn "part2"
+part2 input = do
+  let floorHeight = maximum [y | lines <- input, (start,end) <- lines, (_,y) <- [start,end]] + 2
+  let stripes = toStripes ([((0,floorHeight),(10000,floorHeight))]:input)
+  let stripesZ = zipper stripes & fromWithin traverse
+  putStrLn $ show $ snowToFill stripesZ
 
 day14 part args = do
   let filename = case args of
