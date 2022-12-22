@@ -28,6 +28,7 @@ dependencies:
 - parsec
 - mtl
 - safe
+- zippers
 
 executables:
   advent-of-code2022-exe:

@@ -31,6 +31,7 @@ executable advent-of-code2022-exe
       Day11
       Day12
       Day13
+      Day14
       Day2
       Day3
       Day4
@@ -53,4 +54,5 @@ executable advent-of-code2022-exe
     , safe
     , split
     , vector
+    , zippers
   default-language: Haskell2010
