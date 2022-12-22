@@ -1,6 +1,7 @@
 module Day15 (day15) where
 import Part (Part (Part1, Part2))
 
+import Control.Monad (forM_)
 import Data.List (nub, sort)
 import Text.Parsec
 
@@ -22,7 +23,7 @@ parseInput = fmap parseLine . lines
 
 distance (x1,y1) (x2,y2) = abs (y2 - y1) + abs (x2 - x1)
 
-countBeaconAbsencePositionsOnRow targetRow scans = (sum . fmap (\(a,b) -> b - a + 1) . combineRanges . sort . concat . fmap getRanges $ scans) - scansOnRow
+unknownBeaconAbsencePositionsOnRow targetRow scans = combineRanges . sort . concat . fmap getRanges $ scans
   where
     getRanges (sensor@(sensorx,sensory),beacon@(beaconx,beacony))
       | sensory > targetRow && sensory - targetRow <= distance sensor beacon
@@ -36,15 +37,26 @@ countBeaconAbsencePositionsOnRow targetRow scans = (sum . fmap (\(a,b) -> b - a 
       | c > a && c <= b+1 = combineRanges ((a,max b d):ranges)
       | otherwise = (a,b):(combineRanges ((c,d):ranges))
     combineRanges x = x
-    scansOnRow = length . nub . map (fst . snd) . filter ((== targetRow) . snd . snd) $ scans
 
 part1 :: Parsed -> IO ()
 part1 input = do
-  putStrLn . show . countBeaconAbsencePositionsOnRow 10 $ input
-  putStrLn . show . countBeaconAbsencePositionsOnRow 2000000 $ input
+  let scansOnRow = length . nub . map (fst . snd) . filter ((== 2000000) . snd . snd) $ input
+  putStrLn . show $ (sum . fmap (\(a,b) -> b - a + 1) . unknownBeaconAbsencePositionsOnRow 2000000 $ input) - scansOnRow
+
+gapOfOne min max ((_,b):(ranges@((c,_):_)))
+  | b > min && b + 2 == c = Just $ b + 1
+  | b > max = Nothing
+  | otherwise = gapOfOne min max ranges
+gapOfOne _ _ _ = Nothing
 
 part2 :: Parsed -> IO ()
-part2 _ = putStrLn "part2"
+part2 input = do
+  forM_ [0..4000000] $ \y -> do
+    case gapOfOne 0 4000000 (unknownBeaconAbsencePositionsOnRow y input) of
+      Just x -> putStrLn $ "FOUND IT" ++ show (x * 4000000 + y)
+      Nothing -> pure ()
+    if y `mod` 100000 == 0 then putStrLn (show y) else pure ()
+
 
 day15 part args = do
   let filename = case args of
