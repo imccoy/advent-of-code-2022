@@ -1,7 +1,7 @@
 module Day16 (day16) where
 
 import Control.Monad (forM_)
-import Data.List (sortBy)
+import Data.List (sort)
 import Data.Map.Strict (Map, (!))
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromJust)
@@ -23,6 +23,7 @@ parseReportLine = do string "Valve "
                      tunnels <- sepBy (count 2 upper) (string ", ")
                      pure (label, (FlowRate $ read flowRate, tunnels))
 
+costsGraph :: Parsed -> [(String, Map String Int)]
 costsGraph graph = let onesGraph = Map.fromList [(label, [(1, tunnel) | tunnel <- tunnels]) | (label, (_, tunnels)) <- graph]
                        tapNodes = [label | (label, (flowRate, _)) <- graph, flowRate /= FlowRate 0]
                     in [ (label, dijkstraAll onesGraph label (\_ _ _ -> Nothing) (Map.filterWithKey (\l' _ -> elem l' tapNodes && l' /= label)))
@@ -33,32 +34,38 @@ costsGraph graph = let onesGraph = Map.fromList [(label, [(1, tunnel) | tunnel <
 parseInput :: String -> Parsed
 parseInput = either (error . show) id . runParser (endBy parseReportLine $ string "\n") () "none"
 
+explore :: Parsed -> [(String, Map String Int)] -> [String] -> Int -> [Int] -> [String] -> [(Int, [String])]
 explore graph costsGraph = go 
- where go label volume timeRemaining alreadyOn
-        | otherwise
-         = case [ ((timeRemaining - distance - 1) * flowRate, distance + 1, nextRoom)
-                | (nextRoom, distance) <- Map.assocs $ fromJust $ lookup label costsGraph
-                , not (elem nextRoom alreadyOn)
-                , distance + 1 < timeRemaining
-                , let (FlowRate flowRate, _) = fromJust $ lookup nextRoom graph
+ where go labels volume timesRemaining alreadyOn
+         = case [ finalVolume
+                | (nextLabels, nextVolume, nextTimesRemaining) <-
+                    foldr (\(l, t) options ->
+                            concat [ [ nextVolume `seq` nextTimeRemaining `seq` (nextRoom:ls, nextVolume, nextTimeRemaining:ts)
+                                     | (ls, v, ts) <- options
+                                     , not (elem nextRoom ls)
+                                     , let nextVolume = v + (t - distance - 1) * flowRate, let nextTimeRemaining = t - (distance + 1)
+                                     ]
+                                   | (nextRoom, distance) <- Map.assocs $ fromJust $ lookup l costsGraph
+                                   , not (elem nextRoom alreadyOn) && not (elem nextRoom labels)
+                                   , distance + 1 < t
+                                   , let (FlowRate flowRate, _) = fromJust $ lookup nextRoom graph
+                                   ]
+                          )
+                          [([], volume, [])]
+                          (zip labels timesRemaining)
+                , finalVolume <- go nextLabels nextVolume nextTimesRemaining (labels ++ alreadyOn)
                 ] of
              [] -> [(volume, alreadyOn)]
-             options -> [ finalVolume
-                        | (v', t', l') <- sortBy (\(v1,t1,_) (v2,t2,_) -> case compare v2 v1 of
-                                                                            EQ -> compare t1 t2
-                                                                            c -> c
-                                                 ) options
-                        , let nextVolume = volume + v', let nextTimeRemaining = timeRemaining - t'
-                        , finalVolume <- nextVolume `seq` nextTimeRemaining `seq` go l' nextVolume nextTimeRemaining (label:alreadyOn)
-                        ]
+             finalVolumes -> finalVolumes
 
 part1 :: Parsed -> IO ()
 part1 graph = do
   putStrLn $ show $ costsGraph graph
-  forM_ (explore graph (costsGraph graph) "AA" 0 30 []) $ \volume -> putStrLn $ show volume
+  forM_ (sort $ explore graph (costsGraph graph) ["AA"] 0 [30] []) $ \volume -> putStrLn $ show volume
 
 part2 :: Parsed -> IO ()
-part2 _ = putStrLn "part2"
+part2 graph = do
+  putStrLn $ show $ maximum $ explore graph (costsGraph graph) ["AA", "AA"] 0 [26,26] []
 
 day16 part args = do
   let filename = case args of
