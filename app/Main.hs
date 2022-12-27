@@ -22,6 +22,8 @@ import Day15 (day15)
 import Day16 (day16)
 import Day17 (day17)
 import Day18 (day18)
+import Day19 (day19)
+import Day20 (day20)
 -- NEXT DAY IMPORT
 
 import Part (getPart, Part (Part1, Part2))
@@ -47,6 +49,8 @@ getDay n =
     "16" -> Just day16
     "17" -> Just day17
     "18" -> Just day18
+    "19" -> Just day19
+    "20" -> Just day20
     -- NEXT DAY CASE
     _ -> Nothing
 
