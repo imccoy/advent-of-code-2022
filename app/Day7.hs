@@ -2,6 +2,7 @@
 module Day7 (day7) where
 import Part (Part (Part1, Part2))
 
+import Data.Maybe (fromMaybe)
 import Data.List (partition)
 
 data TerminalCommand = TerminalCommandCd String | TerminalCommandLs [LsContent]
@@ -40,30 +41,41 @@ parseLsCommand lines = let go contents (rest@(('$':_):_)) = (contents, rest)
                         in (TerminalCommandLs contents, rest)
 
 buildTree :: [TerminalCommand] -> FsTree
-buildTree = go [] (FsTree "/" (FsTreeDir []))
-  where go :: [String] -> FsTree -> [TerminalCommand] -> FsTree
-        go cwd tree (command:commands) = let (cwd', tree') = runCommand cwd tree command
-                                          in go cwd' tree' commands
-        go cwd tree [] = tree
-        runCommand :: [String] -> FsTree -> TerminalCommand -> ([String], FsTree)
-        runCommand cwd tree (TerminalCommandCd "/") = ([], tree)
-        runCommand cwd tree (TerminalCommandCd "..") = (tail cwd, tree)
-        runCommand cwd tree (TerminalCommandCd filename) = (filename:cwd, tree)
-        runCommand cwd tree (TerminalCommandLs contents) = (cwd, foldr (flip (addContents (reverse cwd))) tree contents)
-        addContents :: [String] -> FsTree -> LsContent -> FsTree
-        addContents [] tree content = addContent tree content
-        addContents (p:ps) (FsTree here (FsTreeDir children)) content = let (theseOnes, otherOnes) = partition ((== p) . fsTreeName) children
-                                                                            insertInto = case theseOnes of
-                                                                                           [thisOne] -> thisOne
-                                                                                           [] -> FsTree p (FsTreeDir [])
-                                                                         in FsTree here (FsTreeDir ((addContents ps insertInto content):otherOnes))
-        addContent (FsTree here (FsTreeDir currentChildren)) content = let newEntry = case content of
-                                                                                        LsContentFile filename size -> FsTree filename (FsTreeFile size)
-                                                                                        LsContentDir filename -> FsTree filename (FsTreeDir [])
-                                                                        in FsTree here (FsTreeDir $ addChild newEntry currentChildren)
-        addChild newEntry@(FsTree newEntryName _) currentChildren | elem newEntryName (fsTreeName <$> currentChildren) = currentChildren
-                                                                  | otherwise                                          = newEntry:currentChildren
+buildTree = go [(FsTree "/" (FsTreeDir []))]
+  where go :: [FsTree] -> [TerminalCommand] -> FsTree
+        go cwd (command:commands) = let cwd' = runCommand cwd command
+                                     in go cwd' commands
+        go [tree@(FsTree "/" _)] [] = tree
+        go cwd [] = go cwd [TerminalCommandCd "/"]
 
+        runCommand :: [FsTree] -> TerminalCommand -> [FsTree]
+        runCommand tree@[FsTree "/" _] (TerminalCommandCd "/") = tree
+        runCommand cwd (TerminalCommandCd "/")
+          = runCommand (runCommand cwd (TerminalCommandCd "..")) (TerminalCommandCd "/")
+
+        runCommand (innerTree:(FsTree outerDirName (FsTreeDir outerDir)):cwd) (TerminalCommandCd "..")
+          = (FsTree outerDirName $ FsTreeDir $ addTreeEntry innerTree outerDir (\_ new -> new)):cwd
+        runCommand (cwd@((FsTree _ (FsTreeDir dir)):_)) (TerminalCommandCd filename)
+          = let (newDir, _) = findTreeEntry filename dir
+             in (fromMaybe (FsTree filename $ FsTreeDir []) newDir):cwd
+
+        runCommand ((FsTree dirName (FsTreeDir dir)):cwd) (TerminalCommandLs contents)
+          = (FsTree dirName $ FsTreeDir (foldr (\lsContent dir' -> addLsEntry lsContent dir') dir contents)):cwd
+
+        findTreeEntry :: String -> [FsTree] -> (Maybe FsTree, [FsTree])
+        findTreeEntry name [] = (Nothing, [])
+        findTreeEntry name (entry@(FsTree name' _):dir)
+          | name == name' = (Just entry, dir)
+          | otherwise     = let (found, dir') = findTreeEntry name dir
+                             in (found, entry:dir')
+        addTreeEntry new@(FsTree newName existing) dir f = let (existing, dir') = findTreeEntry newName dir
+                                                            in (f existing new):dir'
+        addLsEntry :: LsContent -> [FsTree] -> [FsTree]
+        addLsEntry lsContent dir = addTreeEntry (case lsContent of
+                                                   LsContentDir name -> FsTree name $ FsTreeDir []
+                                                   LsContentFile name size -> FsTree name $ FsTreeFile size)
+                                                dir
+                                                (\existing new -> fromMaybe new existing)
 
 printTree :: FsTree -> IO ()
 printTree = go 0
